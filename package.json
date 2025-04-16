@@ -6,7 +6,10 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:generate": "npx drizzle-kit generate",
+    "db:migrate": "npx drizzle-kit migrate",
+    "db:seed": "npx bun db/seed/index.ts"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
@@ -25,6 +28,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
+    "drizzle-kit": "^0.30.6",
     "eslint-config-next": "15.3.0",
     "tailwindcss": "^4",
     "typescript": "^5"
