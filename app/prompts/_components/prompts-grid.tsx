@@ -15,21 +15,12 @@ interface PromptsGridProps {
   initialPrompts?: Prompt[]; // Optional - will use MOCK_PROMPTS as fallback
 }
 
-// Temporary Mock Data for UI development
-const MOCK_PROMPTS: Prompt[] = [
-  { id: 1, name: "Code Explainer", description: "Explains code in simple terms", content: "Please explain the following code snippet clearly and concisely, assuming I am a beginner programmer:\n\n```python\n[Your Code Here]\n```" },
-  { id: 2, name: "Bug Finder", description: "Helps identify bugs", content: "Review the following code for potential bugs, logical errors, or performance bottlenecks:\n\n```javascript\n[Your Code Here]\n```" },
-  { id: 3, name: "Feature Planner", description: "Helps plan new features", content: "Help me brainstorm and plan the implementation steps for the following feature: [Describe Feature]. Consider potential edge cases and user flows." },
-  { id: 4, name: "SQL Helper", description: "Assists with SQL queries", content: "Generate an efficient SQL query to retrieve [Desired Data] from tables [Table Names] based on the condition: [Condition]." },
-  { id: 5, name: "API Docs Writer", description: "Generates API documentation", content: "Write clear and comprehensive documentation for the following API endpoint:\n\nEndpoint: `[HTTP Method] /path/to/endpoint`\nDescription: [Brief description]\nRequest Body (if any): [Schema/Example]\nResponse Body (Success): [Schema/Example]\nError Responses: [Examples]" },
-  { id: 6, name: "Code Refactoring Assistant", description: "Suggests code improvements", content: "Review the following code snippet and suggest improvements for readability, maintainability, and performance, explaining the reasoning behind each suggestion:\n\n```[language]\n[Your Code Here]\n```" }
-];
 
 
-export const PromptsGrid = ({ initialPrompts = MOCK_PROMPTS }: PromptsGridProps) => {
-  // Initialize state with the provided initialPrompts or fallback to mock data
+export const PromptsGrid = ({ initialPrompts }: PromptsGridProps) => {
+    // Initialize state with the provided initialPrompts or empty array as fallback
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [prompts, setPrompts] = useState<Prompt[]>(initialPrompts);                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+  const [prompts, setPrompts] = useState<Prompt[]>(initialPrompts || []);
   // Placeholder state for copy confirmation (implement later)
   // const [copiedId, setCopiedId] = useState<number | null>(null);
 
