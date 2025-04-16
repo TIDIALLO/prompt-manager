@@ -15,6 +15,7 @@ Backend: PostgreSQL, Supabase, Drizzle
 ## General Rules
 
 - use kebab case for naming files
+- the command fo shadcn is npx @shadcn@latest
 
 ### Comment Rules
 
