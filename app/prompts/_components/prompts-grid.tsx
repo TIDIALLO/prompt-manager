@@ -2,7 +2,7 @@
 "use client";
 
 // Import updatePrompt action
-import { createPrompt, updatePrompt } from "@/actions/prompts-actions";
+import { createPrompt, updatePrompt, deletePrompt } from "@/actions/prompts-actions";
 // UI Components
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,12 +10,17 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle, DialogTrigger
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { motion } from "framer-motion";
 import { Copy, Edit2, Plus, Trash2, Check } from "lucide-react";
 import { useState, FormEvent } from "react";
+import { useToast } from "@/components/ui/use-toast";
 
 // Type definitions
 interface Prompt { id: number; name: string; description: string; content: string; }
@@ -30,13 +35,21 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaE
 export const PromptsGrid = ({ initialPrompts }: PromptsGridProps) => {
   const [prompts, setPrompts] = useState<Prompt[]>(initialPrompts);
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [hoveredDeleteId, setHoveredDeleteId] = useState<number | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formData, setFormData] = useState({ name: "", description: "", content: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  
+  // --- State pour la suppression ---
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [promptToDelete, setPromptToDelete] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
   // --- Add State for Editing ---
-  const [editingId, setEditingId] = useState<number | null>(null); // null when creating, number (ID) when editing
+  const [editingId, setEditingId] = useState<number | null>(null);
+
+  const { toast } = useToast();
 
   // --- Add Handler for Edit Button Click ---
   const handleEditClick = (promptToEdit: Prompt) => {
@@ -90,6 +103,98 @@ export const PromptsGrid = ({ initialPrompts }: PromptsGridProps) => {
     }
   };
 
+  // --- Add Handler for Delete Button Click ---
+  const handleDeleteClick = (promptId: number) => {
+    setPromptToDelete(promptId);
+    setDeleteDialogOpen(true);
+  };
+
+  // --- Add Handler for Delete Confirmation ---
+  const handleDeleteConfirm = async () => {
+    if (promptToDelete === null) return;
+    
+    setIsDeleting(true);
+    try {
+      // Appel à l'action serveur pour supprimer le prompt
+      await deletePrompt(promptToDelete);
+      
+      // Mise à jour de l'état local en supprimant le prompt
+      setPrompts((prevPrompts) => prevPrompts.filter((p) => p.id !== promptToDelete));
+      
+      console.log(`Prompt ${promptToDelete} supprimé.`);
+    } catch (err) {
+      console.error("Delete Prompt Error:", err);
+      // Vous pourriez ajouter un toast ici pour notifier l'erreur
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setPromptToDelete(null);
+    }
+  };
+
+  // Fonction améliorée pour copier le contenu avec fallback
+  const handleCopyClick = async (content: string, promptId: number) => {
+    try {
+      if (!navigator.clipboard) {
+        // Fallback pour les navigateurs qui ne supportent pas l'API Clipboard
+        const textArea = document.createElement("textarea");
+        textArea.value = content;
+        
+        // Éviter le défilement
+        textArea.style.top = "0";
+        textArea.style.left = "0";
+        textArea.style.position = "fixed";
+        textArea.style.opacity = "0";
+        
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+          const successful = document.execCommand('copy');
+          if (successful) {
+            setCopiedId(promptId);
+            toast({
+              title: "Copié !",
+              description: "Le contenu a été copié dans le presse-papiers.",
+              duration: 2000,
+            });
+          } else {
+            throw new Error("Échec de la copie avec execCommand");
+          }
+        } catch (err) {
+          console.error("Fallback copy failed:", err);
+          toast({
+            variant: "destructive",
+            title: "Erreur",
+            description: "Impossible de copier le contenu.",
+          });
+        }
+        
+        document.body.removeChild(textArea);
+      } else {
+        // API Clipboard moderne
+        await navigator.clipboard.writeText(content);
+        setCopiedId(promptId);
+        toast({
+          title: "Copié !",
+          description: "Le contenu a été copié dans le presse-papiers.",
+          duration: 2000,
+        });
+      }
+      
+      // Réinitialiser l'état visuel après 2 secondes
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      console.error("Copy failed:", err);
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible de copier le contenu.",
+      });
+    }
+  };
+
   // ... (empty state rendering) ...
    if (prompts.length === 0) { /* ... */ }
 
@@ -140,6 +245,29 @@ export const PromptsGrid = ({ initialPrompts }: PromptsGridProps) => {
         </Dialog>
       </div>
 
+      {/* Alert Dialog for Delete Confirmation */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action ne peut pas être annulée. Ce prompt sera définitivement supprimé
+              de notre base de données.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Annuler</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteConfirm} 
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {isDeleting ? "Suppression..." : "Supprimer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Update Edit button onClick in the grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {prompts.map((prompt) => (
@@ -162,26 +290,31 @@ export const PromptsGrid = ({ initialPrompts }: PromptsGridProps) => {
                    </div>
                    {/* Action Buttons */}
                    <div className="flex gap-1">
-                     {/* Attach handleEditClick to the Edit button */}
+                     {/* Edit Button */}
                      <Button variant="ghost" size="icon" className="h-7 w-7" title="Edit" onClick={() => handleEditClick(prompt)}>
                        <Edit2 className="w-4 h-4" />
                      </Button>
-                     {/* ... Delete and Copy buttons */}
-                     <Button variant="ghost" size="icon" className="h-7 w-7" title="Delete" onClick={() => console.log('Delete', prompt.id)}> <Trash2 className="w-4 h-4" /> </Button>
+                     {/* Delete Button with Hover Effect */}
                      <Button 
                        variant="ghost" 
                        size="icon" 
-                       className="h-7 w-7" 
-                       title="Copy" 
-                       onClick={() => {
-                         // Copier dans le presse-papier et mettre à jour l'état
-                         navigator.clipboard.writeText(prompt.content);
-                         setCopiedId(prompt.id);
-                         // Réinitialiser après 2 secondes
-                         setTimeout(() => setCopiedId(null), 2000);
-                       }}
+                       className={`h-7 w-7 ${hoveredDeleteId === prompt.id ? 'bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400' : ''}`}
+                       title="Delete" 
+                       onClick={() => handleDeleteClick(prompt.id)}
+                       onMouseEnter={() => setHoveredDeleteId(prompt.id)}
+                       onMouseLeave={() => setHoveredDeleteId(null)}
                      > 
-                       {copiedId === prompt.id ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                       <Trash2 className="w-4 h-4" /> 
+                     </Button>
+                     {/* Copy Button with Success Indicator */}
+                     <Button 
+                       variant="ghost" 
+                       size="icon" 
+                       className={`h-7 w-7 ${copiedId === prompt.id ? 'bg-green-100 text-green-600 dark:bg-green-900/20 dark:text-green-400' : ''}`}
+                       title={copiedId === prompt.id ? "Copied!" : "Copy Content"} 
+                       onClick={() => handleCopyClick(prompt.content, prompt.id)}
+                     > 
+                       {copiedId === prompt.id ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                      </Button>
                    </div>
                  </div>
